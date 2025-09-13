@@ -1,0 +1,7 @@
+# Python
+/backend/venv
+/backend/__pycache__
+
+# Flask
+.flaskenv
+instance/
