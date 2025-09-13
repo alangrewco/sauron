@@ -1,10 +1,12 @@
 # Python
 /backend/venv
-/backend/__pycache__
-/backend/*.pyc
-/__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
 
 
 # Flask
 .flaskenv
+.env
 instance/

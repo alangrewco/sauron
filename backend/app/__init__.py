@@ -1,5 +1,6 @@
 # backend/app/__init__.py
 from flask import Flask
+from flask_cors import CORS
 from config import Config
 
 # Import the db_manager instance from extensions
@@ -18,6 +19,9 @@ def create_app(config_class=Config):
     """
     app = Flask(__name__)
     app.config.from_object(config_class)
+    
+    # Enable CORS for all routes and origins
+    CORS(app)
 
     # --- INITIALIZE EXTENSIONS ---
     # Now we initialize the instances that we created above.
