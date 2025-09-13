@@ -21,7 +21,7 @@ export default function MapBox({
 
   const getMapCenter = (): [number, number] => {
     if (center) return center;
-    if (points.length === 0) return [-74.006, 40.7128];
+    if (points.length === 0) return [-80.5452429, 43.4701994]; // Waterloo University coordinates
     
     const avgLat = points.reduce((sum, point) => sum + point.latitude, 0) / points.length;
     const avgLng = points.reduce((sum, point) => sum + point.longitude, 0) / points.length;

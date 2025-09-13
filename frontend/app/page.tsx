@@ -4,31 +4,31 @@ import { MapPoint } from '@/types/map';
 const samplePoints: MapPoint[] = [
   {
     id: 1,
-    latitude: 40.7589,
-    longitude: -73.9851,
-    title: "Times Square",
-    description: "The heart of Manhattan, famous for its bright lights and Broadway theaters."
+    latitude: 43.4701994,
+    longitude: -80.5452429,
+    title: "University of Waterloo",
+    description: "200 University Ave W, Waterloo, ON N2L 3G1 - A leading public research university."
   },
   {
     id: 2,
-    latitude: 40.7614,
-    longitude: -73.9776,
-    title: "Central Park South",
-    description: "Beautiful park area in the center of Manhattan."
+    latitude: 43.4643,
+    longitude: -80.5204,
+    title: "Waterloo Park",
+    description: "Beautiful urban park in central Waterloo with trails and recreational facilities."
   },
   {
     id: 3,
-    latitude: 40.7505,
-    longitude: -73.9934,
-    title: "Chelsea Market",
-    description: "Indoor food hall and shopping mall in the Chelsea neighborhood."
+    latitude: 43.4723,
+    longitude: -80.5449,
+    title: "Conestoga Mall",
+    description: "Major shopping center serving the Waterloo region."
   },
   {
     id: 4,
-    latitude: 40.7282,
-    longitude: -74.0776,
-    title: "One World Trade Center",
-    description: "The main building of the rebuilt World Trade Center complex."
+    latitude: 43.4668,
+    longitude: -80.5164,
+    title: "Uptown Waterloo",
+    description: "Historic downtown core with shops, restaurants, and entertainment venues."
   }
 ];
 
