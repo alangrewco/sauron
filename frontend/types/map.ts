@@ -13,4 +13,5 @@ export interface MapBoxProps {
   width?: string;
   height?: string;
   accessToken: string;
+  onCenterChange?: (center: [number, number]) => void;
 }

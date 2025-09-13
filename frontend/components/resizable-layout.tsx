@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import SettingsPanel from '@/components/settings-panel';
 import MapBox from '@/components/mapbox';
@@ -11,15 +12,28 @@ interface ResizableLayoutProps {
 }
 
 export default function ResizableLayout({ points, accessToken }: ResizableLayoutProps) {
+  const [mapCenter, setMapCenter] = useState<[number, number] | undefined>();
+  const [currentCenter, setCurrentCenter] = useState<[number, number] | undefined>();
+
+  const handleLocationSelect = (coordinates: [number, number]) => {
+    setMapCenter(coordinates);
+    setCurrentCenter(coordinates);
+  };
+
+  const handleMapCenterChange = (center: [number, number]) => {
+    setCurrentCenter(center);
+  };
   return (
     <div className="h-full relative">
       {/* Full-screen background map */}
       <div className="absolute inset-0">
         <MapBox
           points={points}
+          center={mapCenter}
           height="100%"
           zoom={12}
           accessToken={accessToken}
+          onCenterChange={handleMapCenterChange}
         />
       </div>
       
@@ -29,7 +43,11 @@ export default function ResizableLayout({ points, accessToken }: ResizableLayout
           {/* Left Panel - Settings */}
           <ResizablePanel defaultSize={25} minSize={20} maxSize={40} className="pointer-events-auto">
             <div className="h-full bg-background/95 backdrop-blur-sm border-r shadow-lg">
-              <SettingsPanel />
+              <SettingsPanel 
+                accessToken={accessToken}
+                onLocationSelect={handleLocationSelect}
+                currentCenter={currentCenter}
+              />
             </div>
           </ResizablePanel>
           

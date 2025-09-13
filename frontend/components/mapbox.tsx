@@ -11,7 +11,8 @@ export default function MapBox({
   zoom = 10,
   width = '100%',
   height = '100%',
-  accessToken
+  accessToken,
+  onCenterChange
 }: MapBoxProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
@@ -32,10 +33,11 @@ export default function MapBox({
   useEffect(() => {
     if (!mapContainer.current) return;
 
+    const initialCenter = getMapCenter();
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
       style: 'mapbox://styles/mapbox/light-v11',
-      center: getMapCenter(),
+      center: initialCenter,
       zoom: zoom
     });
 
@@ -56,12 +58,37 @@ export default function MapBox({
 
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
+    // Track map center changes
+    map.current.on('moveend', () => {
+      if (map.current && onCenterChange) {
+        const mapCenter = map.current.getCenter();
+        onCenterChange([mapCenter.lng, mapCenter.lat]);
+      }
+    });
+
+    // Report initial center
+    if (onCenterChange) {
+      const mapCenter = map.current.getCenter();
+      onCenterChange([mapCenter.lng, mapCenter.lat]);
+    }
+
     return () => {
       if (map.current) {
         map.current.remove();
       }
     };
-  }, []);
+  }, [zoom]); // Only include zoom since it's stable, points and center are handled in separate effects
+
+  // Handle center prop changes
+  useEffect(() => {
+    if (!map.current || !center) return;
+    
+    map.current.flyTo({
+      center: center,
+      zoom: zoom,
+      duration: 1000 // Smooth transition duration in milliseconds
+    });
+  }, [center, zoom]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -98,7 +125,7 @@ export default function MapBox({
       markers.current.push(marker);
     });
 
-    if (points.length > 1) {
+    if (points.length > 1 && !center) {
       const bounds = new mapboxgl.LngLatBounds();
       points.forEach(point => {
         bounds.extend([point.longitude, point.latitude]);
@@ -108,7 +135,7 @@ export default function MapBox({
         padding: { top: 20, bottom: 20, left: 20, right: 20 }
       });
     }
-  }, [points]);
+  }, [points, center]);
 
   return (
     <div 
