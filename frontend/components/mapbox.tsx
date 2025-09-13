@@ -10,42 +10,52 @@ export default function MapBox({
   center,
   zoom = 10,
   width = '100%',
-  height = '400px',
+  height = '100%',
   accessToken
 }: MapBoxProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
 
-  // Set the Mapbox access token
   mapboxgl.accessToken = accessToken;
 
-  // Calculate center from points if not provided
   const getMapCenter = (): [number, number] => {
     if (center) return center;
-    if (points.length === 0) return [-74.006, 40.7128]; // Default to NYC
+    if (points.length === 0) return [-74.006, 40.7128];
     
     const avgLat = points.reduce((sum, point) => sum + point.latitude, 0) / points.length;
     const avgLng = points.reduce((sum, point) => sum + point.longitude, 0) / points.length;
     
-    return [avgLng, avgLat]; // Mapbox uses [lng, lat]
+    return [avgLng, avgLat];
   };
 
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    // Initialize map
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/streets-v12',
+      style: 'mapbox://styles/mapbox/light-v11',
       center: getMapCenter(),
       zoom: zoom
     });
 
-    // Add navigation controls
+    map.current.on('style.load', () => {
+      if (map.current) {
+        map.current.getStyle().layers.forEach((layer) => {
+          if (layer.type === 'raster') {
+            map.current!.setPaintProperty(layer.id, 'raster-saturation', -1);
+          }
+        });
+        
+        const mapCanvas = map.current.getCanvas();
+        if (mapCanvas) {
+          mapCanvas.style.filter = 'grayscale(100%)';
+        }
+      }
+    });
+
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
 
-    // Cleanup function
     return () => {
       if (map.current) {
         map.current.remove();
@@ -53,17 +63,13 @@ export default function MapBox({
     };
   }, []);
 
-  // Update markers when points change
   useEffect(() => {
     if (!map.current) return;
 
-    // Clear existing markers
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
 
-    // Add new markers
     points.forEach((point) => {
-      // Create popup content if title or description exists
       let popupContent = '';
       if (point.title || point.description) {
         popupContent = `
@@ -77,13 +83,11 @@ export default function MapBox({
         `;
       }
 
-      // Create marker
       const marker = new mapboxgl.Marker({
-        color: '#ef4444' // Red marker color
+        color: '#ef4444'
       })
         .setLngLat([point.longitude, point.latitude]);
 
-      // Add popup if content exists
       if (popupContent) {
         const popup = new mapboxgl.Popup({ offset: 25 })
           .setHTML(popupContent);
@@ -94,7 +98,6 @@ export default function MapBox({
       markers.current.push(marker);
     });
 
-    // Fit map to markers if there are multiple points
     if (points.length > 1) {
       const bounds = new mapboxgl.LngLatBounds();
       points.forEach(point => {
@@ -110,7 +113,7 @@ export default function MapBox({
   return (
     <div 
       ref={mapContainer} 
-      className="mapbox-container rounded-lg border shadow-sm"
+      className="mapbox-container border shadow-sm"
       style={{ width, height }}
     />
   );
