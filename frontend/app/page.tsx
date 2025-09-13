@@ -1,34 +1,18 @@
+'use client';
+
+import { useEffect } from 'react';
 import ResizableLayout from '@/components/resizable-layout';
 import { MapPoint } from '@/types/map';
+import { useDevices } from '@/hooks/use-devices';
 
-const samplePoints: MapPoint[] = [
+// Fallback sample points in case backend is not available or returns no data
+const fallbackPoints: MapPoint[] = [
   {
-    id: 1,
+    id: 'fallback-1',
     latitude: 43.4701994,
     longitude: -80.5452429,
     title: "University of Waterloo",
     description: "200 University Ave W, Waterloo, ON N2L 3G1 - A leading public research university."
-  },
-  {
-    id: 2,
-    latitude: 43.4643,
-    longitude: -80.5204,
-    title: "Waterloo Park",
-    description: "Beautiful urban park in central Waterloo with trails and recreational facilities."
-  },
-  {
-    id: 3,
-    latitude: 43.4723,
-    longitude: -80.5449,
-    title: "Conestoga Mall",
-    description: "Major shopping center serving the Waterloo region."
-  },
-  {
-    id: 4,
-    latitude: 43.4668,
-    longitude: -80.5164,
-    title: "Uptown Waterloo",
-    description: "Historic downtown core with shops, restaurants, and entertainment venues."
   }
 ];
 
@@ -36,11 +20,47 @@ const samplePoints: MapPoint[] = [
 const MAPBOX_ACCESS_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your-mapbox-access-token-here';
 
 export default function Home() {
+  const { points, devices, loading, error, refetch, pagination } = useDevices({
+    limit: 9000, // Fetch up to 9000 devices to match backend capacity
+    offset: 0,
+  });
+
+  // Use device points from backend, fallback to sample points if no data
+  const displayPoints = points.length > 0 ? points : fallbackPoints;
+
+  useEffect(() => {
+    if (error) {
+      console.error('Failed to load device data:', error);
+    }
+  }, [error]);
+
   return (
     <div className="h-screen flex flex-col">
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 text-sm">
+          <span>⚠️ Could not load device data from backend: {error}</span>
+          <button 
+            onClick={refetch}
+            className="ml-2 underline hover:no-underline"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {loading && (
+        <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 text-sm">
+          🔄 Loading device data...
+        </div>
+      )}
+      {!loading && !error && devices.length > 0 && (
+        <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 text-sm">
+          ✅ Loaded {devices.length} devices from backend
+          {pagination && ` (${pagination.total} total devices available)`}
+        </div>
+      )}
       <div className="flex-1">
         <ResizableLayout
-          points={samplePoints}
+          points={displayPoints}
           accessToken={MAPBOX_ACCESS_TOKEN}
         />
       </div>
