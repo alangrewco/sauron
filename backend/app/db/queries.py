@@ -171,7 +171,7 @@ def get_trajectories_in_area(db_manager: DatabaseManager, lat: float, lon: float
         query = """
             WITH bssids_in_area AS (
                 SELECT DISTINCT bssid
-                FROM location_pings
+                FROM movement_tracking_pings
                 WHERE ST_DWithin(location, ST_MakePoint(%s, %s)::geography, %s)
                   AND timestamp BETWEEN %s AND %s
             )
@@ -180,7 +180,7 @@ def get_trajectories_in_area(db_manager: DatabaseManager, lat: float, lon: float
                 lp.latitude AS lat,
                 lp.longitude AS lon,
                 lp.timestamp
-            FROM location_pings lp
+            FROM movement_tracking_pings lp
             JOIN bssids_in_area bia ON lp.bssid = bia.bssid
             ORDER BY lp.bssid, lp.timestamp ASC;
         """

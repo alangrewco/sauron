@@ -1,11 +1,13 @@
 # backend/run.py
 from app import create_app
 from config import Config
+import logging
 import os
 
 # Create the Flask app instance using the application factory pattern.
 # This allows for better testability and configuration management.
 app = create_app(config_class=Config)
+logging.basicConfig(level=logging.INFO, force=True)
 
 if __name__ == '__main__':
     # Get port from environment variable or default to 5000
