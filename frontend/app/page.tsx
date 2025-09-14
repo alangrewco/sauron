@@ -150,6 +150,11 @@ export default function Home() {
           🔄 Loading movement data...
         </div>
       )}
+      {!loading && !error && (
+        <div className="bg-blue-50 border border-green-200 text-green-700 px-4 py-2 text-sm z-50">
+          ✅ Successfully fetched {visibleDevices.length} devices from backend
+        </div>
+      )}
       <div className="flex-1">
         <ResizableLayout
           points={displayPoints}
