@@ -16,14 +16,24 @@ interface FilterAccordionProps {
   onRadiusChange: (radius: number) => void;
   showStatic: boolean;
   onShowStaticChange: (show: boolean) => void;
+  timeRange: { min: number, max: number } | null;
+  currentMinute: number;
+  onCurrentMinuteChange: (minute: number) => void;
+  formattedTime: string;
 }
 
-export function FilterAccordion({
-  radius,
-  onRadiusChange,
-  showStatic,
-  onShowStaticChange,
-}: FilterAccordionProps) {
+// Removed invalid destructured function declaration above. Only the correct function below remains.
+  export function FilterAccordion(props: FilterAccordionProps) {
+    const {
+      radius,
+      onRadiusChange,
+      showStatic,
+      onShowStaticChange,
+      timeRange,
+      currentMinute,
+      onCurrentMinuteChange,
+      formattedTime,
+    } = props;
   return (
     <Accordion
       type="single"
@@ -62,6 +72,25 @@ export function FilterAccordion({
               </div>
             </div>
           </div>
+
+            <div className="space-y-3">
+            <Label className="text-sm font-medium">Timeline (Minute)</Label>
+            <div className="space-y-2">
+              <Slider
+                value={[currentMinute]}
+                onValueChange={(value) => onCurrentMinuteChange(value[0])}
+                min={0}
+                max={59}
+                step={1}
+                className="w-full"
+                disabled={!timeRange}
+              />
+              <div className="text-center text-xs text-muted-foreground font-mono">
+                {formattedTime}
+              </div>
+            </div>
+          </div>
+
           <Separator />
         </AccordionContent>
       </AccordionItem>

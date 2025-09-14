@@ -12,7 +12,7 @@ interface SettingsPanelProps {
   accessToken: string;
   onLocationSelect: (coordinates: [number, number], placeName: string) => void;
   currentCenter?: [number, number];
-  
+
   // Filter states
   radius: number;
   onRadiusChange: (radius: number) => void;
@@ -25,9 +25,9 @@ interface SettingsPanelProps {
   onCurrentMinuteChange: (minute: number) => void;
 }
 
-export default function SettingsPanel({ 
-  accessToken, 
-  onLocationSelect, 
+export default function SettingsPanel({
+  accessToken,
+  onLocationSelect,
   currentCenter,
   radius,
   onRadiusChange,
@@ -38,19 +38,20 @@ export default function SettingsPanel({
   onCurrentMinuteChange
 }: SettingsPanelProps) {
 
-  const formattedTime = timeRange 
-    ? new Date(timeRange.min + (currentMinute * 60 * 1000)).toLocaleString() 
+  const formattedTime = timeRange
+    ? new Date(timeRange.min + (currentMinute * 60 * 1000)).toLocaleString()
     : 'Loading...';
 
   return (
     <div className="h-full flex flex-col">
       <div className="p-4 space-y-6 overflow-y-auto">
 
-        <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight text-balance">
-          Sauron
-        </h1>
-      
-        <Image src="/logo.png" alt="Sauron" width={100} height={50} />
+        <div className="flex items-center gap-4">
+          <Image src="/logo.png" alt="Sauron" width={50} height={25} />
+          <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight text-balance">
+            Sauron
+          </h1>
+        </div>
 
         <div className="space-y-3">
           <Label htmlFor="location" className="text-sm font-medium">
@@ -69,33 +70,19 @@ export default function SettingsPanel({
           )}
         </div>
 
-        <FilterAccordion 
+        <FilterAccordion
           radius={radius}
           onRadiusChange={onRadiusChange}
           showStatic={showStatic}
           onShowStaticChange={onShowStaticChange}
+          timeRange={timeRange}
+          currentMinute={currentMinute}
+          onCurrentMinuteChange={onCurrentMinuteChange}
+          formattedTime={formattedTime}
         />
 
-        <div className="space-y-3">
-          <Label className="text-sm font-medium">Timeline (Minute)</Label>
-          <div className="space-y-2">
-            <Slider
-              value={[currentMinute]}
-              onValueChange={(value) => onCurrentMinuteChange(value[0])}
-              min={0}
-              max={59}
-              step={1}
-              className="w-full"
-              disabled={!timeRange}
-            />
-            <div className="text-center text-xs text-muted-foreground font-mono">
-              {formattedTime}
-            </div>
-          </div>
-        </div>
-
       </div>
-      
+
       <Separator className="mt-auto" />
       <div className="flex-1 min-h-0">
         <Chatbot />
