@@ -6,6 +6,38 @@ from psycopg2.extras import RealDictCursor
 from .manager import DatabaseManager, handle_db_reconnection
 
 @handle_db_reconnection
+def setup_tracking_table(db_manager: DatabaseManager):
+    """
+    Ensures the table for movement tracking exists and clears any old data
+    from tracking runs.
+    """
+    conn = db_manager.get_connection()
+    if not conn: return
+    with conn.cursor() as cur:
+        # Step 1: Create the table if it doesn't already exist.
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS movement_tracking_pings (
+                id SERIAL PRIMARY KEY,
+                bssid VARCHAR(17) NOT NULL REFERENCES devices(bssid) ON DELETE CASCADE,
+                timestamp TIMESTAMPTZ NOT NULL,
+                latitude DOUBLE PRECISION,
+                longitude DOUBLE PRECISION,
+                location GEOGRAPHY(Point, 4326)
+            );
+        """)
+        
+        # Step 2: Clear all existing rows from the table for a fresh start.
+        # TRUNCATE is much faster than DELETE for clearing an entire table.
+        # RESTART IDENTITY resets the 'id' counter back to 1.
+        cur.execute("TRUNCATE TABLE movement_tracking_pings RESTART IDENTITY;") # <-- THIS IS THE NEW LINE
+        
+        # Step 3: Ensure the index exists.
+        cur.execute("CREATE INDEX IF NOT EXISTS idx_movement_tracking_pings_bssid_timestamp ON movement_tracking_pings (bssid, timestamp);")
+    
+    conn.commit()
+    logging.info("[DB] Movement tracking table is set up and cleared.")
+
+@handle_db_reconnection
 def get_all_devices(db_manager: DatabaseManager, limit: int = 100, offset: int = 0) -> Dict:
     """
     Retrieves a paginated list of all devices from the database, along with the total count.
@@ -168,9 +200,6 @@ def get_trajectories_in_area(db_manager: DatabaseManager, lat: float, lon: float
     
     return list(trajectories.values())
 
-# ... (other query functions like get_total_device_count, add_bssids_to_queue, etc. go here)
-# --- The rest of the functions from the old db_utils.py are moved here ---
-
 @handle_db_reconnection
 def get_bssid_for_seeding(db_manager: DatabaseManager) -> Optional[str]:
     conn = db_manager.get_connection()
@@ -242,3 +271,77 @@ def insert_pings(db_manager: DatabaseManager, pings: list):
         """
         cur.executemany(insert_query, pings)
     conn.commit()
+
+@handle_db_reconnection
+def get_all_bssids(db_manager: DatabaseManager) -> List[str]:
+    """Retrieves a list of every BSSID in the devices table."""
+    conn = db_manager.get_connection()
+    if not conn: return []
+    with conn.cursor() as cur:
+        cur.execute("SELECT bssid FROM devices;")
+        # Flatten the list of tuples returned by fetchall() into a simple list of strings.
+        results = [row[0] for row in cur.fetchall()]
+        return results
+    
+@handle_db_reconnection
+def get_latest_pings_for_bssids(db_manager: DatabaseManager, bssids: List[str]) -> Dict[str, Dict]:
+    """
+    Fetches the single most recent location_ping for each BSSID in a given list.
+    """
+    if not bssids:
+        return {}
+    conn = db_manager.get_connection()
+    if not conn:
+        return {}
+    
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        query = """
+            SELECT DISTINCT ON (bssid)
+                bssid, latitude AS lat, longitude AS lon
+            FROM location_pings
+            WHERE bssid = ANY(%s)
+            ORDER BY bssid, timestamp DESC;
+        """
+        cur.execute(query, (bssids,))
+        results = cur.fetchall()
+    return {row['bssid']: {'lat': row['lat'], 'lon': row['lon']} for row in results}
+
+@handle_db_reconnection
+def insert_tracking_pings(db_manager: DatabaseManager, pings: List[Dict]):
+    """
+    Atomically inserts a batch of location pings into the movement_tracking_pings table.
+    """
+    if not pings: return 0
+    conn = db_manager.get_connection()
+    if not conn: return 0
+    
+    with conn.cursor() as cur:
+        insert_data = []
+        for ping in pings:
+            lat = ping.get('lat')
+            lon = ping.get('lon')
+            point_wkt = f"POINT({lon} {lat})" if lat is not None and lon is not None else None
+            insert_data.append((ping['bssid'], ping['timestamp'], lat, lon, point_wkt))
+        
+        insert_query = """
+            INSERT INTO movement_tracking_pings (bssid, timestamp, latitude, longitude, location)
+            VALUES (%s, %s, %s, %s, ST_GeogFromText(%s));
+        """
+        cur.executemany(insert_query, insert_data)
+    conn.commit()
+    return len(pings)
+
+@handle_db_reconnection
+def get_all_movement_pings(db_manager: DatabaseManager) -> List[Dict]:
+    """
+    Fetches all records from the movement_tracking_pings table, ordered by time.
+    """
+    conn = db_manager.get_connection()
+    if not conn: return []
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        cur.execute("""
+            SELECT bssid, latitude AS lat, longitude AS lon, timestamp
+            FROM movement_tracking_pings
+            ORDER BY timestamp ASC;
+        """)
+        return cur.fetchall()
