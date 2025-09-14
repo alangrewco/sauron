@@ -10,3 +10,6 @@ __pycache__/
 .flaskenv
 .env
 instance/
+
+venv
+/venv/
