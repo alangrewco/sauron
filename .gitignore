@@ -4,9 +4,14 @@ __pycache__/
 *.py[cod]
 *$py.class
 *.so
+/backend/__pycache__
+/backend/*.pyc
+/backend/lambda_deploy_package
+/__pycache__/
 
 
 # Flask
 .flaskenv
 .env
 instance/
+
