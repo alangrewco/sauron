@@ -3,6 +3,7 @@ import logging
 import math
 from flask import request, jsonify, url_for
 from datetime import datetime
+from collections import defaultdict
 
 from . import api_blueprint
 from app.extensions import db_manager
@@ -10,10 +11,50 @@ from app import chatbot_service
 from app.db.queries import (
     get_trajectories_in_area,
     get_all_devices,
-    get_path_for_bssid
+    get_path_for_bssid,
+    get_all_movement_pings
 )
 
 logging.basicConfig(level=logging.INFO)
+
+@api_blueprint.route('/movement/trajectories', methods=['GET'])
+def get_movement_trajectories():
+    """
+    GET endpoint to retrieve all trajectories from the movement simulation.
+    The data is structured for easy consumption by map frontends, with all
+    points grouped by their BSSID.
+    """
+    try:
+        # 1. Fetch the flat list of all pings from the database
+        all_pings = get_all_movement_pings(db_manager)
+
+        if not all_pings:
+            # If the table is empty, return an empty list
+            return jsonify({'data': []})
+
+        # 2. Group the pings by BSSID into a dictionary
+        trajectories_grouped = defaultdict(list)
+        for ping in all_pings:
+            # The database returns datetime objects, which we convert to ISO strings for JSON
+            trajectories_grouped[ping['bssid']].append({
+                'lat': ping['lat'],
+                'lon': ping['lon'],
+                'timestamp': ping['timestamp'].isoformat()
+            })
+        
+        # 3. Format the dictionary into the final list-based API response
+        response_data = []
+        for bssid, points in trajectories_grouped.items():
+            response_data.append({
+                'bssid': bssid,
+                'trajectory': points
+            })
+
+        return jsonify({'data': response_data})
+
+    except Exception as e:
+        logging.error(f'Error fetching simulation trajectories: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
 
 @api_blueprint.route('/devices', methods=['GET'])
 def list_all_devices():
