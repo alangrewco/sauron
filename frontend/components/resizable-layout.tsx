@@ -9,9 +9,11 @@ import { MapPoint } from '@/types/map';
 interface ResizableLayoutProps {
   points: MapPoint[];
   accessToken: string;
+  isStatic: boolean;
+  setIsStatic: (value: boolean) => void;
 }
 
-export default function ResizableLayout({ points, accessToken }: ResizableLayoutProps) {
+export default function ResizableLayout({ points, accessToken, isStatic, setIsStatic }: ResizableLayoutProps) {
   const [mapCenter, setMapCenter] = useState<[number, number] | undefined>();
   const [currentCenter, setCurrentCenter] = useState<[number, number] | undefined>();
 
@@ -23,6 +25,9 @@ export default function ResizableLayout({ points, accessToken }: ResizableLayout
   const handleMapCenterChange = useCallback((center: [number, number]) => {
     setCurrentCenter(center);
   }, []);
+
+  // Remove onStaticChange, not needed for map
+  
   return (
     <div className="h-full relative">
       {/* Full-screen background map */}
@@ -47,6 +52,8 @@ export default function ResizableLayout({ points, accessToken }: ResizableLayout
                 accessToken={accessToken}
                 onLocationSelect={handleLocationSelect}
                 currentCenter={currentCenter}
+                isStatic={isStatic}
+                setIsStatic={setIsStatic}
               />
             </div>
           </ResizablePanel>

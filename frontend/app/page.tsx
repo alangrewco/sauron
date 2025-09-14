@@ -60,6 +60,8 @@ export default function Home() {
         <ResizableLayout
           points={displayPoints}
           accessToken={MAPBOX_ACCESS_TOKEN}
+          isStatic={isStatic}
+          setIsStatic={setIsStatic}
         />
       </div>
     </div>

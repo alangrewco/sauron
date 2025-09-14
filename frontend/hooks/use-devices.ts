@@ -110,7 +110,7 @@ export function useDevices({
     if (enabled) {
       fetchDevices();
     }
-  }, [lat, lon, radius, hoursBack, enabled]);
+  }, [lat, lon, radius, hoursBack, enabled, isStatic]);
 
   return {
     devices,

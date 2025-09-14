@@ -12,16 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 
-export function FilterAccordion({ onStaticChange }: { onStaticChange?: (isStatic: boolean) => void }) {
-  const [radius, setRadius] = useState([5]);
-  const [showStatic, setShowStatic] = useState(false);
-
-  const handleSwitchChange = (checked: boolean) => {
-    setShowStatic(checked);
-    if (onStaticChange) {
-      onStaticChange(checked); // Pass the value up to parent or hook
-    }
-  };
+export function FilterAccordion({ isStatic, onStaticChange }: { isStatic: boolean; onStaticChange: (isStatic: boolean) => void }) {
 
   return (
     <Accordion
@@ -38,8 +29,8 @@ export function FilterAccordion({ onStaticChange }: { onStaticChange?: (isStatic
           <div className="flex items-center space-x-2">
             <Switch
               id="airplane-mode"
-              checked={showStatic}
-              onCheckedChange={handleSwitchChange}
+              checked={isStatic}
+              onCheckedChange={onStaticChange}
             />
             <Label htmlFor="airplane-mode">Show Static Devices</Label>
           </div>

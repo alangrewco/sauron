@@ -77,7 +77,7 @@ export default function MapBox({
         map.current.remove();
       }
     };
-  }, [zoom, onCenterChange]); // Include onCenterChange
+  }, [zoom, onCenterChange, points]); // Include onCenterChange
 
   // Handle center prop changes
   useEffect(() => {
