@@ -1,7 +1,8 @@
 # backend/app/api/routes.py
 import logging
 import math
-from flask import request, jsonify, url_for
+import json
+from flask import request, jsonify, url_for, Response
 from datetime import datetime
 from collections import defaultdict
 
@@ -12,51 +13,68 @@ from app.db.queries import (
     get_trajectories_in_area,
     get_all_devices,
     get_path_for_bssid,
-    get_all_movement_pings
+    get_all_movement_pings,
+    get_movement_simulation_time_range
 )
-
-# TODO: Consider moving to a utility module
-from geopy.distance import geodesic
 
 logging.basicConfig(level=logging.INFO)
 
 @api_blueprint.route('/movement/trajectories', methods=['GET'])
 def get_movement_trajectories():
     """
-    GET endpoint to retrieve all trajectories from the movement simulation.
-    The data is structured for easy consumption by map frontends, with all
-    points grouped by their BSSID.
+    GET endpoint to retrieve trajectories from the movement simulation.
+    Accepts optional 'lat', 'lon', and 'radius' query parameters to filter
+    the devices by a geographic area.
     """
     try:
-        # 1. Fetch the flat list of all pings from the database
-        all_pings = get_all_movement_pings(db_manager)
+        # Check for optional filter parameters
+        lat = request.args.get('lat', type=float)
+        lon = request.args.get('lon', type=float)
+        radius = request.args.get('radius', type=int)
+
+        # The db query function is designed to handle None for these, so no complex checks needed
+        all_pings = get_all_movement_pings(db_manager, lat=lat, lon=lon, radius=radius)
 
         if not all_pings:
-            # If the table is empty, return an empty list
             return jsonify({'data': []})
 
-        # 2. Group the pings by BSSID into a dictionary
+        # Group pings by BSSID
         trajectories_grouped = defaultdict(list)
         for ping in all_pings:
-            # The database returns datetime objects, which we convert to ISO strings for JSON
-            trajectories_grouped[ping['bssid']].append({
-                'lat': ping['lat'],
-                'lon': ping['lon'],
-                'timestamp': ping['timestamp'].isoformat()
-            })
+            if ping['lat'] is not None and ping['lon'] is not None:
+                trajectories_grouped[ping['bssid']].append({
+                    'lat': ping['lat'],
+                    'lon': ping['lon'],
+                    'timestamp': ping['timestamp'].isoformat()
+                })
         
-        # 3. Format the dictionary into the final list-based API response
-        response_data = []
-        for bssid, points in trajectories_grouped.items():
-            response_data.append({
-                'bssid': bssid,
-                'trajectory': points
-            })
+        # Format into the final API response
+        response_data = [
+            {'bssid': bssid, 'trajectory': points}
+            for bssid, points in trajectories_grouped.items()
+        ]
 
         return jsonify({'data': response_data})
 
     except Exception as e:
         logging.error(f'Error fetching simulation trajectories: {e}')
+        return jsonify({'error': 'Internal server error'}), 500
+
+@api_blueprint.route('/movement/time-range', methods=['GET'])
+def get_time_range():
+    """
+    GET endpoint to retrieve the min and max timestamps from the simulation data.
+    """
+    try:
+        min_time, max_time = get_movement_simulation_time_range(db_manager)
+        if min_time and max_time:
+            return jsonify({
+                'start_time': min_time.isoformat(),
+                'end_time': max_time.isoformat()
+            })
+        return jsonify({'start_time': None, 'end_time': None})
+    except Exception as e:
+        logging.error(f'Error fetching simulation time range: {e}')
         return jsonify({'error': 'Internal server error'}), 500
 
 @api_blueprint.route('/devices', methods=['GET'])
@@ -130,13 +148,10 @@ def get_device_trajectory(bssid: str):
             {**t, 'timestamp': t['timestamp'].isoformat()}
             for t in trajectory_rows
         ]
-        
-        isStaticDevice = check_if_static(trajectory_data)
 
         response = {
             'bssid': bssid,
-            'trajectory': trajectory_data,
-            'is_static_device': isStaticDevice
+            'trajectory': trajectory_data
         }
         return jsonify(response)
     except Exception as e:
@@ -156,15 +171,9 @@ def get_filtered_trajectories():
         radius = int(request.args.get('radius'))
         start_time_str = request.args.get('start_time')
         end_time_str = request.args.get('end_time')
-        isStatic = request.args.get('is_static', 'true').lower() == 'true'
 
         if not all([lat is not None, lon is not None, radius is not None, start_time_str, end_time_str]):
             return jsonify({'error': 'Missing required parameters'}), 400
-        if isStatic is None:
-            logging.info("isStatic not provided, defaulting to True")
-            isStatic = True  # Default to True if not provided (always filter all trajectories)
-        else:
-            logging.info(f"isStatic provided: {isStatic}")
 
         start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
         end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
@@ -174,10 +183,6 @@ def get_filtered_trajectories():
 
     try:
         trajectories = get_trajectories_in_area(db_manager, lat, lon, radius, start_time, end_time)
-        if isStatic:
-            logging.info("FILTERING STATIC DEVICES")
-            # TODO: Maybe optimize by filtering in SQL query instead of in Python
-            trajectories = [t for t in trajectories if not check_if_static(t['trajectory'])]
         return jsonify({'data': trajectories})
     except Exception as e:
         logging.error(f'Error fetching trajectories from database: {e}')
@@ -187,7 +192,7 @@ def get_filtered_trajectories():
 @api_blueprint.route('/chat', methods=['POST'])
 def chat_with_llm():
     """
-    POST endpoint for the LLM chatbot.
+    POST endpoint for the LLM chatbot that streams the response.
     """
     data = request.get_json()
     if not data or 'message' not in data:
@@ -197,30 +202,23 @@ def chat_with_llm():
     conversation_id = data.get('conversation_id', f'sauron-user-{request.remote_addr}')
 
     try:
-        response_text = chatbot_service.handle_chat_request(
-            message=user_message,
-            conversation_id=conversation_id
-        )
-        return jsonify({'response': response_text, 'conversation_id': conversation_id})
+        # This function will be the generator for our streaming response
+        def generate_stream():
+            # Get the generator from the chatbot service
+            stream = chatbot_service.handle_chat_request(
+                message=user_message,
+                conversation_id=conversation_id
+            )
+            # Yield each chunk from the service, formatted as a Server-Sent Event (SSE)
+            for chunk in stream:
+                sse_formatted_chunk = f"data: {json.dumps({'response': chunk})}\n\n"
+                yield sse_formatted_chunk
+        
+        # Return the streaming response to the client
+        return Response(generate_stream(), mimetype='text/event-stream')
+
     except Exception as e:
-        logging.error(f'Error communicating with Cohere API: {e}')
-        return jsonify({'error': 'Failed to get response from the chatbot service.'}), 503
-    
-
-def check_if_static(trajectory_data):
-    """
-    Determine if a device is static based on its trajectory data.
-    A device is considered static if it has not moved more than 10 meters over its recorded trajectory.
-    """
-    DISTANCE_THRESHOLD_METERS = 10
-    if len(trajectory_data) < 2:
-        return True  # Not enough data to determine movement
-
-    first_point = (trajectory_data[0]['lat'], trajectory_data[0]['lon'])
-    for point in trajectory_data[1:]:
-        current_point = (point['lat'], point['lon'])
-        distance = geodesic(first_point, current_point).meters
-        if distance > DISTANCE_THRESHOLD_METERS:  # Threshold for movement
-            logging.info(f'Moving target. Distance from first point: {distance} meters')
-            return False
-    return True 
+        logging.error(f'Error initializing chat stream: {e}')
+        # If an error occurs, we can send a final SSE event with an error message
+        error_message = json.dumps({'error': 'Failed to get response from the chatbot service.'})
+        return Response(f"data: {error_message}\n\n", mimetype='text/event-stream', status=503)

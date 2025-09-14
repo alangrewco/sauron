@@ -1,147 +1,160 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MapBoxProps } from '@/types/map';
+import { Trajectory } from '@/lib/api';
+
+interface TrajectoryWithStyle extends Trajectory {
+  color: string;
+}
+
+interface ExtendedMapBoxProps extends MapBoxProps {
+  trajectories: TrajectoryWithStyle[];
+  radius: number;
+  filterLocation?: [number, number];
+}
 
 export default function MapBox({
   points,
+  trajectories,
   center,
+  radius,
+  filterLocation,
   zoom = 10,
   width = '100%',
   height = '100%',
   accessToken,
   onCenterChange
-}: MapBoxProps) {
+}: ExtendedMapBoxProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<mapboxgl.Marker[]>([]);
+  const [initialFitDone, setInitialFitDone] = useState(false);
 
   mapboxgl.accessToken = accessToken;
 
-  const getMapCenter = (): [number, number] => {
-    if (center) return center;
-    if (points.length === 0) return [-80.5452429, 43.4701994]; // Waterloo University coordinates
-    
-    const avgLat = points.reduce((sum, point) => sum + point.latitude, 0) / points.length;
-    const avgLng = points.reduce((sum, point) => sum + point.longitude, 0) / points.length;
-    
-    return [avgLng, avgLat];
-  };
-
+  // Effect for initializing the map (runs once)
   useEffect(() => {
     if (!mapContainer.current) return;
-
-    const initialCenter = getMapCenter();
     map.current = new mapboxgl.Map({
       container: mapContainer.current,
-      style: 'mapbox://styles/mapbox/light-v11',
-      center: initialCenter,
+      style: 'mapbox://styles/mapbox/dark-v11',
+      center: [-80.54, 43.47],
       zoom: zoom
     });
-
-    map.current.on('style.load', () => {
-      if (map.current) {
-        map.current.getStyle().layers.forEach((layer) => {
-          if (layer.type === 'raster') {
-            map.current!.setPaintProperty(layer.id, 'raster-saturation', -1);
-          }
-        });
-        
-        const mapCanvas = map.current.getCanvas();
-        if (mapCanvas) {
-          mapCanvas.style.filter = 'grayscale(100%)';
-        }
-      }
-    });
-
     map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-    // Track map center changes
     map.current.on('moveend', () => {
       if (map.current && onCenterChange) {
         const mapCenter = map.current.getCenter();
         onCenterChange([mapCenter.lng, mapCenter.lat]);
       }
     });
+    return () => map.current?.remove();
+  }, []);
 
-    // Report initial center
-    if (onCenterChange) {
-      const mapCenter = map.current.getCenter();
-      onCenterChange([mapCenter.lng, mapCenter.lat]);
-    }
-
-    return () => {
-      if (map.current) {
-        map.current.remove();
-      }
-    };
-  }, [zoom, onCenterChange]); // Include onCenterChange
-
-  // Handle center prop changes
   useEffect(() => {
     if (!map.current || !center) return;
-    
-    map.current.flyTo({
-      center: center,
-      zoom: zoom,
-      duration: 1000 // Smooth transition duration in milliseconds
-    });
-  }, [center, zoom]);
+    map.current.flyTo({ center: center, zoom: 14, duration: 1000 });
+  }, [center]);
+
+  // --- NEW: Effect for drawing the radius circle ---
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+
+    const sourceId = 'radius-circle';
+    const source = map.current.getSource(sourceId);
+
+    if (filterLocation) {
+      const geojson: GeoJSON.FeatureCollection<GeoJSON.Point> = {
+        type: 'FeatureCollection',
+        features: [{
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: filterLocation },
+          properties: {},
+        }],
+      };
+
+      if (source) {
+        (source as mapboxgl.GeoJSONSource).setData(geojson);
+      } else {
+        map.current.addSource(sourceId, { type: 'geojson', data: geojson });
+        map.current.addLayer({
+          id: 'radius-circle-fill',
+          type: 'circle',
+          source: sourceId,
+          paint: {
+            'circle-radius': {
+              stops: [
+                [0, 0],
+                [20, radius * 1000] // Convert km to meters at zoom level 20
+              ],
+              base: 2
+            },
+            'circle-color': '#7c3aed', // A nice purple
+            'circle-opacity': 0.2
+          }
+        });
+        map.current.addLayer({
+          id: 'radius-circle-outline',
+          type: 'circle',
+          source: sourceId,
+          paint: {
+            'circle-radius': {
+              stops: [
+                [0, 0],
+                [20, radius * 1000]
+              ],
+              base: 2
+            },
+            'circle-stroke-color': '#a78bfa',
+            'circle-stroke-width': 2,
+            'circle-color': 'transparent' // Make the inside transparent
+          }
+        });
+      }
+      
+      // Update the radius paint property directly when the slider changes
+      map.current.setPaintProperty('radius-circle-fill', 'circle-radius', { stops: [[0, 0], [20, radius * 1000]], base: 2 });
+      map.current.setPaintProperty('radius-circle-outline', 'circle-radius', { stops: [[0, 0], [20, radius * 1000]], base: 2 });
+
+    } else if (source) {
+      // If there's no location, remove the circle by clearing the source
+      (source as mapboxgl.GeoJSONSource).setData({ type: 'FeatureCollection', features: [] });
+    }
+  }, [filterLocation, radius]);
+
+  useEffect(() => {
+    if (!map.current || !map.current.isStyleLoaded()) return;
+    const sourceId = 'trajectory-paths';
+    const geojson = { type: 'FeatureCollection', features: trajectories.filter(t => t.trajectory.length > 1).map(t => ({ type: 'Feature', properties: { color: t.color }, geometry: { type: 'LineString', coordinates: t.trajectory.map(p => [p.lon, p.lat]) } })) };
+    const source = map.current.getSource(sourceId);
+    if (source) { (source as mapboxgl.GeoJSONSource).setData(geojson); }
+    else {
+      map.current.addSource(sourceId, { type: 'geojson', data: geojson });
+      map.current.addLayer({ id: 'trajectory-lines', type: 'line', source: sourceId, layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['get', 'color'], 'line-width': 2, 'line-opacity': 0.8 } });
+    }
+  }, [trajectories]);
 
   useEffect(() => {
     if (!map.current) return;
-
     markers.current.forEach(marker => marker.remove());
     markers.current = [];
-
     points.forEach((point) => {
-      let popupContent = '';
-      if (point.title || point.description) {
-        popupContent = `
-          <div class="p-2">
-            ${point.title ? `<h3 class="font-semibold text-sm mb-1">${point.title}</h3>` : ''}
-            ${point.description ? `<p class="text-xs text-gray-600">${point.description}</p>` : ''}
-            <p class="text-xs text-gray-500 mt-1">
-              ${point.latitude.toFixed(4)}, ${point.longitude.toFixed(4)}
-            </p>
-          </div>
-        `;
-      }
-
-      const marker = new mapboxgl.Marker({
-        color: '#ef4444'
-      })
-        .setLngLat([point.longitude, point.latitude]);
-
-      if (popupContent) {
-        const popup = new mapboxgl.Popup({ offset: 25 })
-          .setHTML(popupContent);
-        marker.setPopup(popup);
-      }
-
-      marker.addTo(map.current!);
+      const el = document.createElement('div');
+      el.className = 'custom-marker';
+      const popupContent = `<div class="p-1"><h3 class="font-semibold text-sm">${point.title}</h3><p class="text-xs text-gray-400">${point.description}</p></div>`;
+      const marker = new mapboxgl.Marker(el).setLngLat([point.longitude, point.latitude]).setPopup(new mapboxgl.Popup({ offset: 25, closeButton: false }).setHTML(popupContent)).addTo(map.current!);
       markers.current.push(marker);
     });
-
-    if (points.length > 1 && !center) {
+    if (points.length > 1 && !initialFitDone && !center) {
       const bounds = new mapboxgl.LngLatBounds();
-      points.forEach(point => {
-        bounds.extend([point.longitude, point.latitude]);
-      });
-      
-      map.current.fitBounds(bounds, {
-        padding: { top: 20, bottom: 20, left: 20, right: 20 }
-      });
+      points.forEach(point => { bounds.extend([point.longitude, point.latitude]); });
+      map.current.fitBounds(bounds, { padding: 50, duration: 1000 });
+      setInitialFitDone(true);
     }
-  }, [points, center]);
+  }, [points, initialFitDone, center]);
 
-  return (
-    <div 
-      ref={mapContainer} 
-      className="mapbox-container border shadow-sm"
-      style={{ width, height }}
-    />
-  );
+  return ( <div ref={mapContainer} className="mapbox-container" style={{ width, height }} /> );
 }

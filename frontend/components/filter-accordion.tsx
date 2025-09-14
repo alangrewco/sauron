@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import {
   Accordion,
   AccordionContent,
@@ -12,9 +11,19 @@ import { Label } from '@/components/ui/label';
 import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 
-export function FilterAccordion() {
-  const [radius, setRadius] = useState([5]);
+interface FilterAccordionProps {
+  radius: number;
+  onRadiusChange: (radius: number) => void;
+  showStatic: boolean;
+  onShowStaticChange: (show: boolean) => void;
+}
 
+export function FilterAccordion({
+  radius,
+  onRadiusChange,
+  showStatic,
+  onShowStaticChange,
+}: FilterAccordionProps) {
   return (
     <Accordion
       type="single"
@@ -27,16 +36,20 @@ export function FilterAccordion() {
           <Separator />
 
           <div className="flex items-center space-x-2">
-            <Switch id="airplane-mode" />
-            <Label htmlFor="airplane-mode">Show Static Devices</Label>
+            <Switch
+              id="static-devices"
+              checked={showStatic}
+              onCheckedChange={onShowStaticChange}
+            />
+            <Label htmlFor="static-devices">Include Static Devices</Label>
           </div>
 
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Radius (km)</Label>
+            <Label className="text-sm font-medium">Search Radius (km)</Label>
             <div className="space-y-2">
               <Slider
-                value={radius}
-                onValueChange={setRadius}
+                value={[radius]}
+                onValueChange={(value) => onRadiusChange(value[0])}
                 max={50}
                 min={1}
                 step={1}
@@ -44,7 +57,7 @@ export function FilterAccordion() {
               />
               <div className="flex items-center justify-between text-xs text-muted-foreground">
                 <span>1 km</span>
-                <span className="font-medium">{radius[0]} km</span>
+                <span className="font-medium">{radius} km</span>
                 <span>50 km</span>
               </div>
             </div>

@@ -4,6 +4,7 @@ import random
 from typing import Dict, Optional, Tuple, List
 from psycopg2.extras import RealDictCursor
 from .manager import DatabaseManager, handle_db_reconnection
+from datetime import datetime
 
 @handle_db_reconnection
 def setup_tracking_table(db_manager: DatabaseManager):
@@ -332,16 +333,106 @@ def insert_tracking_pings(db_manager: DatabaseManager, pings: List[Dict]):
     return len(pings)
 
 @handle_db_reconnection
-def get_all_movement_pings(db_manager: DatabaseManager) -> List[Dict]:
+def get_all_movement_pings(db_manager: DatabaseManager, lat: Optional[float] = None, lon: Optional[float] = None, radius: Optional[int] = None) -> List[Dict]:
     """
-    Fetches all records from the movement_tracking_pings table, ordered by time.
+    Fetches records from the movement_tracking_pings table.
+    If lat, lon, and radius are provided, it filters for BSSIDs that have at least
+    one ping within that area and returns the FULL trajectory for those BSSIDs.
+    Otherwise, it fetches all records. All results are ordered by time.
     """
     conn = db_manager.get_connection()
     if not conn: return []
+
     with conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("""
-            SELECT bssid, latitude AS lat, longitude AS lon, timestamp
-            FROM movement_tracking_pings
-            ORDER BY timestamp ASC;
-        """)
+        if lat is not None and lon is not None and radius is not None:
+            # This query first finds the BSSIDs in the area, then fetches all pings for those BSSIDs
+            query = """
+                WITH bssids_in_area AS (
+                    SELECT DISTINCT bssid
+                    FROM movement_tracking_pings
+                    WHERE location IS NOT NULL AND ST_DWithin(location, ST_MakePoint(%s, %s)::geography, %s)
+                )
+                SELECT
+                    mtp.bssid,
+                    mtp.latitude AS lat,
+                    mtp.longitude AS lon,
+                    mtp.timestamp
+                FROM movement_tracking_pings mtp
+                JOIN bssids_in_area bia ON mtp.bssid = bia.bssid
+                ORDER BY mtp.timestamp ASC;
+            """
+            cur.execute(query, (lon, lat, radius))
+        else:
+            # Original query to fetch all pings
+            query = """
+                SELECT bssid, latitude AS lat, longitude AS lon, timestamp
+                FROM movement_tracking_pings
+                ORDER BY timestamp ASC;
+            """
+            cur.execute(query)
+        
         return cur.fetchall()
+
+    
+@handle_db_reconnection
+def get_bssids_in_area_at_time(db_manager: DatabaseManager, lat: float, lon: float, radius: int, start_time, end_time) -> List[str]:
+    """
+    Finds distinct BSSIDs that were within a radius of a point in a time window,
+    using the movement simulation data.
+    """
+    conn = db_manager.get_connection()
+    if not conn: return []
+    
+    with conn.cursor() as cur:
+        query = """
+            SELECT DISTINCT bssid
+            FROM movement_tracking_pings
+            WHERE location IS NOT NULL AND ST_DWithin(location, ST_MakePoint(%s, %s)::geography, %s)
+              AND timestamp BETWEEN %s AND %s;
+        """
+        cur.execute(query, (lon, lat, radius, start_time, end_time))
+        # Flatten the list of tuples into a simple list of BSSID strings
+        return [row[0] for row in cur.fetchall()]
+
+@handle_db_reconnection
+def get_latest_movement_pings_for_bssids(db_manager: DatabaseManager, bssids: List[str]) -> Dict[str, Dict]:
+    """
+    Fetches the single most recent movement_tracking_ping for each BSSID in a given list.
+    """
+    if not bssids:
+        return {}
+    conn = db_manager.get_connection()
+    if not conn:
+        return {}
+    
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        query = """
+            SELECT DISTINCT ON (bssid)
+                bssid, latitude AS lat, longitude AS lon, timestamp
+            FROM movement_tracking_pings
+            WHERE bssid = ANY(%s)
+            ORDER BY bssid, timestamp DESC;
+        """
+        cur.execute(query, (bssids,))
+        results = cur.fetchall()
+    
+    # Format the results into a dictionary for easy lookup
+    return {row['bssid']: {'lat': row['lat'], 'lon': row['lon'], 'timestamp': row['timestamp'].isoformat()} for row in results}
+
+
+@handle_db_reconnection
+def get_movement_simulation_time_range(db_manager: DatabaseManager) -> Optional[Tuple[datetime, datetime]]:
+    """
+    Fetches the minimum and maximum timestamps from the movement_tracking_pings table.
+    """
+    conn = db_manager.get_connection()
+    if not conn: return None, None # Return a tuple of Nones
+    with conn.cursor() as cur:
+        cur.execute("""
+            SELECT MIN(timestamp), MAX(timestamp)
+            FROM movement_tracking_pings;
+        """)
+        result = cur.fetchone()
+        if result and result[0] is not None and result[1] is not None:
+            return result[0], result[1]
+        return None, None # Return a tuple of Nones

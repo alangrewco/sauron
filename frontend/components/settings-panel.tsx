@@ -4,17 +4,47 @@ import Image from 'next/image';
 import { FilterAccordion } from './filter-accordion';
 import MapboxSearchBox from './mapbox-search-box';
 import { Label } from './ui/label';
+import { Slider } from './ui/slider';
+import { Chatbot } from './chatbot';
+import { Separator } from './ui/separator';
 
 interface SettingsPanelProps {
   accessToken: string;
   onLocationSelect: (coordinates: [number, number], placeName: string) => void;
   currentCenter?: [number, number];
+  
+  // Filter states
+  radius: number;
+  onRadiusChange: (radius: number) => void;
+  showStatic: boolean;
+  onShowStaticChange: (show: boolean) => void;
+
+  // Timeline states
+  timeRange: { min: number, max: number } | null;
+  currentMinute: number;
+  onCurrentMinuteChange: (minute: number) => void;
 }
 
-export default function SettingsPanel({ accessToken, onLocationSelect, currentCenter }: SettingsPanelProps) {
+export default function SettingsPanel({ 
+  accessToken, 
+  onLocationSelect, 
+  currentCenter,
+  radius,
+  onRadiusChange,
+  showStatic,
+  onShowStaticChange,
+  timeRange,
+  currentMinute,
+  onCurrentMinuteChange
+}: SettingsPanelProps) {
+
+  const formattedTime = timeRange 
+    ? new Date(timeRange.min + (currentMinute * 60 * 1000)).toLocaleString() 
+    : 'Loading...';
+
   return (
-    <div className="h-full p-4 bg-background">
-      <div className="space-y-6">
+    <div className="h-full flex flex-col">
+      <div className="p-4 space-y-6 overflow-y-auto">
 
         <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight text-balance">
           Sauron
@@ -34,15 +64,41 @@ export default function SettingsPanel({ accessToken, onLocationSelect, currentCe
           />
           {currentCenter && (
             <div className="text-xs text-muted-foreground mt-2 font-mono">
-              {currentCenter[1].toFixed(6)}, {currentCenter[0].toFixed(6)}
+              Map Center: {currentCenter[1].toFixed(4)}, {currentCenter[0].toFixed(4)}
             </div>
           )}
         </div>
 
+        <FilterAccordion 
+          radius={radius}
+          onRadiusChange={onRadiusChange}
+          showStatic={showStatic}
+          onShowStaticChange={onShowStaticChange}
+        />
+
         <div className="space-y-3">
-          <FilterAccordion />
+          <Label className="text-sm font-medium">Timeline (Minute)</Label>
+          <div className="space-y-2">
+            <Slider
+              value={[currentMinute]}
+              onValueChange={(value) => onCurrentMinuteChange(value[0])}
+              min={0}
+              max={59}
+              step={1}
+              className="w-full"
+              disabled={!timeRange}
+            />
+            <div className="text-center text-xs text-muted-foreground font-mono">
+              {formattedTime}
+            </div>
+          </div>
         </div>
 
+      </div>
+      
+      <Separator className="mt-auto" />
+      <div className="flex-1 min-h-0">
+        <Chatbot />
       </div>
     </div>
   );
