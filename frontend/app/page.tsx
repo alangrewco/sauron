@@ -21,8 +21,12 @@ const MAPBOX_ACCESS_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your
 
 export default function Home() {
   const { points, devices, loading, error, refetch, pagination } = useDevices({
-    limit: 9000, // Fetch up to 9000 devices to match backend capacity
-    offset: 0,
+    // Default parameters will use University of Waterloo area with 5km radius for last 24 hours
+    // You can customize these parameters:
+    // lat: 43.4701994,
+    // lon: -80.5452429,
+    // radius: 5000, // 5km radius
+    // hoursBack: 24, // Last 24 hours
   });
 
   // Use device points from backend, fallback to sample points if no data
@@ -49,13 +53,12 @@ export default function Home() {
       )}
       {loading && (
         <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-2 text-sm">
-          🔄 Loading device data...
+          🔄 Loading trajectory data...
         </div>
       )}
       {!loading && !error && devices.length > 0 && (
         <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-2 text-sm">
-          ✅ Loaded {devices.length} devices from backend
-          {pagination && ` (${pagination.total} total devices available)`}
+          ✅ Loaded {devices.length} devices with trajectory data from backend
         </div>
       )}
       <div className="flex-1">
