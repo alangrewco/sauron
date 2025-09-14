@@ -13,6 +13,7 @@ from app.db.queries import (
     get_path_for_bssid
 )
 
+# TODO: Consider moving to a utility module
 from geopy.distance import geodesic
 
 logging.basicConfig(level=logging.INFO)
@@ -94,7 +95,7 @@ def get_device_trajectory(bssid: str):
         response = {
             'bssid': bssid,
             'trajectory': trajectory_data,
-            'isStaticDevice': isStaticDevice
+            'is_static_device': isStaticDevice
         }
         return jsonify(response)
     except Exception as e:
@@ -114,12 +115,12 @@ def get_filtered_trajectories():
         radius = int(request.args.get('radius'))
         start_time_str = request.args.get('start_time')
         end_time_str = request.args.get('end_time')
-        isStatic = request.args.get('isStatic', 'false').lower() == 'true'
+        isStatic = request.args.get('is_static', 'false').lower() == 'true'
 
         if not all([lat is not None, lon is not None, radius is not None, start_time_str, end_time_str]):
             return jsonify({'error': 'Missing required parameters'}), 400
         if isStatic is None:
-            isStatic = False  # Default to False if not provided (return all trajectories)
+            isStatic = True  # Default to True if not provided (always filter all trajectories)
 
         start_time = datetime.fromisoformat(start_time_str.replace('Z', '+00:00'))
         end_time = datetime.fromisoformat(end_time_str.replace('Z', '+00:00'))
@@ -130,8 +131,11 @@ def get_filtered_trajectories():
     try:
         trajectories = get_trajectories_in_area(db_manager, lat, lon, radius, start_time, end_time)
         if isStatic:
+            logging.info("FILTERING STATIC DEVICES")
             # TODO: Maybe optimize by filtering in SQL query instead of in Python
             trajectories = [t for t in trajectories if check_if_static(t['trajectory'])]
+        else:
+            logging.info("NOT FILTERING STATIC DEVICES")
         return jsonify({'data': trajectories})
     except Exception as e:
         logging.error(f'Error fetching trajectories from database: {e}')
@@ -166,6 +170,8 @@ def check_if_static(trajectory_data):
     Determine if a device is static based on its trajectory data.
     A device is considered static if it has not moved more than 10 meters over its recorded trajectory.
     """
+    logging.info(trajectory_data)
+    logging.info("CHECKING IF STATIC")
     DISTANCE_THRESHOLD_METERS = 10
     if len(trajectory_data) < 2:
         return True  # Not enough data to determine movement
@@ -174,6 +180,7 @@ def check_if_static(trajectory_data):
     for point in trajectory_data[1:]:
         current_point = (point['latitude'], point['longitude'])
         distance = geodesic(first_point, current_point).meters
+        logging.info(f'Distance from first point: {distance} meters')
         if distance > DISTANCE_THRESHOLD_METERS:  # Threshold for movement
             return False
     return True 
