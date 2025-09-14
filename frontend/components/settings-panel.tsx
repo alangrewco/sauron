@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { FilterAccordion } from './filter-accordion';
 import MapboxSearchBox from './mapbox-search-box';
 import { Label } from './ui/label';
@@ -18,6 +19,8 @@ export default function SettingsPanel({ accessToken, onLocationSelect, currentCe
         <h1 className="scroll-m-20 text-4xl font-extrabold tracking-tight text-balance">
           Sauron
         </h1>
+      
+        <Image src="/logo.png" alt="Sauron" width={100} height={50} />
 
         <div className="space-y-3">
           <Label htmlFor="location" className="text-sm font-medium">
