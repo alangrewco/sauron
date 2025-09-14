@@ -120,3 +120,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* --- ADD THIS NEW STYLE FOR THE CUSTOM MARKER --- */
+.custom-marker {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #3b82f6; /* A nice blue */
+  border: 2px solid #ffffff;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+}

@@ -3,4 +3,5 @@ requests
 psycopg2-binary
 python-dotenv
 cohere
-protobufflask-cors
+protobuf
+flask-cors
