@@ -12,8 +12,16 @@ import { Label } from '@/components/ui/label';
 import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 
-export function FilterAccordion() {
+export function FilterAccordion({ onStaticChange }: { onStaticChange?: (isStatic: boolean) => void }) {
   const [radius, setRadius] = useState([5]);
+  const [showStatic, setShowStatic] = useState(false);
+
+  const handleSwitchChange = (checked: boolean) => {
+    setShowStatic(checked);
+    if (onStaticChange) {
+      onStaticChange(checked); // Pass the value up to parent or hook
+    }
+  };
 
   return (
     <Accordion
@@ -28,29 +36,15 @@ export function FilterAccordion() {
           <Separator />
 
           <div className="flex items-center space-x-2">
-            <Switch id="airplane-mode" />
+            <Switch
+              id="airplane-mode"
+              checked={showStatic}
+              onCheckedChange={handleSwitchChange}
+            />
             <Label htmlFor="airplane-mode">Show Static Devices</Label>
           </div>
 
-          <div className="space-y-3">
-            <Label className="text-sm font-medium">Radius (km)</Label>
-            <div className="space-y-2">
-              <Slider
-                value={radius}
-                onValueChange={setRadius}
-                max={50}
-                min={1}
-                step={1}
-                className="w-full"
-              />
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>1 km</span>
-                <span className="font-medium">{radius[0]} km</span>
-                <span>50 km</span>
-              </div>
-            </div>
-          </div>
-          <Separator />
+          {/* ...existing code... */}
         </AccordionContent>
       </AccordionItem>
     </Accordion>

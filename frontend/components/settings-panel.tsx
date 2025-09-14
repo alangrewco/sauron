@@ -1,8 +1,10 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { FilterAccordion } from './filter-accordion';
 import MapboxSearchBox from './mapbox-search-box';
 import { Label } from './ui/label';
+import { useDevices } from '@/hooks/use-devices';
 
 interface SettingsPanelProps {
   accessToken: string;
@@ -11,6 +13,15 @@ interface SettingsPanelProps {
 }
 
 export default function SettingsPanel({ accessToken, onLocationSelect, currentCenter }: SettingsPanelProps) {
+  const [isStatic, setIsStatic] = useState(false);
+
+  // Use the hook here, passing isStatic
+  const { devices, points, loading, error, refetch } = useDevices({ isStatic });
+
+  useEffect(() => {
+    refetch(); // refetch devices when isStatic changes
+  }, [isStatic]);
+
   return (
     <div className="h-full p-4 bg-background">
       <div className="space-y-6">
@@ -37,7 +48,7 @@ export default function SettingsPanel({ accessToken, onLocationSelect, currentCe
         </div>
 
         <div className="space-y-3">
-          <FilterAccordion />
+          <FilterAccordion onStaticChange={setIsStatic}/>
         </div>
 
       </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import ResizableLayout from '@/components/resizable-layout';
 import { MapPoint } from '@/types/map';
 import { useDevices } from '@/hooks/use-devices';
@@ -20,17 +20,12 @@ const fallbackPoints: MapPoint[] = [
 const MAPBOX_ACCESS_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN || 'your-mapbox-access-token-here';
 
 export default function Home() {
-  const { points, devices, loading, error, refetch, pagination } = useDevices({
-    // Default parameters will use University of Waterloo area with 5km radius for last 24 hours
-    // You can customize these parameters:
-    // lat: 43.4701994,
-    // lon: -80.5452429,
-    // radius: 5000, // 5km radius
-    // hoursBack: 24, // Last 24 hours
-  });
+  const [isStatic, setIsStatic] = useState(false);
+  const { points, devices, loading, error, refetch } = useDevices({ isStatic });
 
   // Use device points from backend, fallback to sample points if no data
   const displayPoints = points.length > 0 ? points : fallbackPoints;
+
 
   useEffect(() => {
     if (error) {

@@ -27,6 +27,7 @@ interface UseDevicesOptions {
   radius?: number; // Search radius in meters (default: 5000)
   hoursBack?: number; // How many hours back to fetch data (default: 24)
   enabled?: boolean; // Whether to auto-fetch on mount (default: true)
+  isStatic?: boolean; // Whether to filter for static devices only (default: true)
 }
 
 export function useDevices({
@@ -34,7 +35,8 @@ export function useDevices({
   lon = -80.5452429, // University of Waterloo
   radius = 5000, // 5km radius
   hoursBack = 24, // Last 24 hours
-  enabled = true
+  enabled = true,
+  isStatic = true,
 }: UseDevicesOptions = {}): UseDevices {
   const [devices, setDevices] = useState<TrajectoryDevice[]>([]);
   const [points, setPoints] = useState<MapPoint[]>([]);
@@ -53,7 +55,7 @@ export function useDevices({
       console.log(`Fetching trajectories from backend: area=(${lat}, ${lon}), radius=${radius}m, time range: ${startTime.toISOString()} to ${endTime.toISOString()}`);
       
       // Get filtered trajectories in the specified area and time range
-      const response = await getTrajectories(lat, lon, radius, startTime, endTime);
+      const response = await getTrajectories(lat, lon, radius, startTime, endTime, isStatic);
       
       console.log(`Received ${response.data.length} devices with trajectory data from backend`);
       
