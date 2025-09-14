@@ -15,3 +15,5 @@ __pycache__/
 .env
 instance/
 
+venv
+/venv/

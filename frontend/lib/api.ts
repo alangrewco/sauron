@@ -58,13 +58,14 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   return response.json();
 }
 
-// Get trajectories in a specific area and time range
+// Get trajectories in a specific area and time range, with optional isStatic filter
 export async function getTrajectories(
   lat: number,
   lon: number,
   radius: number,
   startTime: Date,
-  endTime: Date
+  endTime: Date,
+  isStatic?: boolean
 ): Promise<TrajectoryResponse> {
   const params = new URLSearchParams({
     lat: lat.toString(),
@@ -73,6 +74,10 @@ export async function getTrajectories(
     start_time: startTime.toISOString(),
     end_time: endTime.toISOString(),
   });
+
+  if (typeof isStatic === 'boolean') {
+    params.append('is_static', isStatic ? 'true' : 'false');
+  }
 
   return apiRequest<TrajectoryResponse>(`/trajectories?${params.toString()}`);
 }
