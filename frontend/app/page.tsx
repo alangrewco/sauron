@@ -121,21 +121,25 @@ export default function Home() {
 
   // --- Data derivation for map props (No Changes Here) ---
   const trajectoriesForMap = useMemo(() => {
-    return visibleDevices.map(d => ({
-      bssid: d.id,
-      color: d.color,
-      trajectory: d.visiblePath,
-    }));
+    return visibleDevices
+      .filter((d): d is NonNullable<typeof d> => d != null)
+      .map(d => ({
+        bssid: d.id,
+        color: d.color,
+        trajectory: d.visiblePath,
+      }));
   }, [visibleDevices]);
 
   const displayPoints = useMemo<MapPoint[]>(() => {
-    return visibleDevices.map(d => ({
-      id: d.id,
-      latitude: d.currentPoint.lat,
-      longitude: d.currentPoint.lon,
-      title: `Device: ${d.id}`,
-      description: `Time: ${new Date(d.currentPoint.timestamp).toLocaleString()}`,
-    }));
+    return visibleDevices
+      .filter((d): d is NonNullable<typeof d> => d != null)
+      .map(d => ({
+        id: d.id,
+        latitude: d.currentPoint.lat,
+        longitude: d.currentPoint.lon,
+        title: `Device: ${d.id}`,
+        description: `Time: ${new Date(d.currentPoint.timestamp).toLocaleString()}`,
+      }));
   }, [visibleDevices]);
 
   return (

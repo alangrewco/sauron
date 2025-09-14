@@ -4,7 +4,6 @@ import Image from 'next/image';
 import { FilterAccordion } from './filter-accordion';
 import MapboxSearchBox from './mapbox-search-box';
 import { Label } from './ui/label';
-import { Slider } from './ui/slider';
 import { Chatbot } from './chatbot';
 import { Separator } from './ui/separator';
 
