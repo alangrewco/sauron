@@ -61,7 +61,7 @@ export function Chatbot() {
                     <div className="text-center text-muted-foreground text-sm flex flex-col items-center justify-center h-full">
                         <BotIcon className="size-8 mb-2" />
                         <p>Ask Sauron where people are.</p>
-                        <p className="text-xs mt-2">e.g., "Who was near the bank on University Ave yesterday at 3 PM?"</p>
+                        <p className="text-xs mt-2">e.g., &quot;Who was near the bank on University Ave yesterday at 3 PM?&quot;</p>
                     </div>
                 ) : (
                     messages.map(msg => <ChatMessage key={msg.id} message={msg} />)
