@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
 import SettingsPanel from '@/components/settings-panel';
 import MapBox from '@/components/mapbox';
@@ -15,14 +15,14 @@ export default function ResizableLayout({ points, accessToken }: ResizableLayout
   const [mapCenter, setMapCenter] = useState<[number, number] | undefined>();
   const [currentCenter, setCurrentCenter] = useState<[number, number] | undefined>();
 
-  const handleLocationSelect = (coordinates: [number, number]) => {
+  const handleLocationSelect = useCallback((coordinates: [number, number]) => {
     setMapCenter(coordinates);
     setCurrentCenter(coordinates);
-  };
+  }, []);
 
-  const handleMapCenterChange = (center: [number, number]) => {
+  const handleMapCenterChange = useCallback((center: [number, number]) => {
     setCurrentCenter(center);
-  };
+  }, []);
   return (
     <div className="h-full relative">
       {/* Full-screen background map */}

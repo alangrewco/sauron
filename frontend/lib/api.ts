@@ -73,6 +73,7 @@ export async function getTrajectories(
     radius: radius.toString(),
     start_time: startTime.toISOString(),
     end_time: endTime.toISOString(),
+    isStatic: true.toString(),
   });
 
   if (typeof isStatic === 'boolean') {
